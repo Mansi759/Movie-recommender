@@ -3,18 +3,28 @@ import pickle
 import pandas as pd
 import requests
 from streamlit_option_menu import option_menu
+import gdown
+import os
 
 # Constants
 API_KEY = "8b18e733dda9d723feb6d25829e0a326"
 POSTER_BASE_URL = "https://image.tmdb.org/t/p/w500"
 PLACEHOLDER_IMAGE = "https://via.placeholder.com/150"
 
-# Load data
+# Load movies_dict.pkl
 movies_dict = pickle.load(open("movies_dict.pkl", "rb"))
-similarity = pickle.load(open("similarity.pkl", "rb"))
-movies = pd.DataFrame(movies_dict)
 
-# Convert release_date to datetime
+# Download similarity.pkl if not already present
+if not os.path.exists("similarity.pkl"):
+    file_id = "1lyxJlR87ARHsaGfAzHRoVNRsVUnEHhB-"  # <-- Google Drive File ID
+    url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    gdown.download(url, "similarity.pkl", quiet=False)
+
+# Load similarity
+similarity = pickle.load(open("similarity.pkl", "rb"))
+
+# Create DataFrame
+movies = pd.DataFrame(movies_dict)
 movies["release_date"] = pd.to_datetime(movies["release_date"], errors="coerce")
 
 # Fetch movie poster
@@ -28,14 +38,12 @@ def fetch_movie_details(movie_id):
     movie_row = movies[movies["movie_id"] == movie_id].iloc[0]
     response = requests.get(f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={API_KEY}&append_to_response=credits")
     data = response.json()
-    cast_list = data.get("credits", {}).get("cast", [])[:5]  # Top 5 cast members
-
+    cast_list = data.get("credits", {}).get("cast", [])[:5]
     cast_names = [cast["name"] for cast in cast_list]
     cast_posters = [
         f"{POSTER_BASE_URL}{cast['profile_path']}" if cast.get("profile_path") else PLACEHOLDER_IMAGE
         for cast in cast_list
     ]
-
     return {
         "title": data.get("title", "Unknown Movie"),
         "overview": data.get("overview", "No overview available."),
@@ -48,7 +56,7 @@ def fetch_movie_details(movie_id):
         "cast_posters": cast_posters
     }
 
-# Recommendation function
+# Recommend function
 def recommend(movie):
     if movie not in movies["title"].values:
         return [], []
@@ -59,7 +67,7 @@ def recommend(movie):
     posters = [fetch_poster(movies.iloc[i[0]].movie_id) for i in movie_list]
     return names, posters
 
-# Streamlit App
+# Streamlit setup
 st.set_page_config(page_title="🎬 Movie Recommender", page_icon="🎥", layout="wide")
 
 # Sidebar
@@ -72,7 +80,7 @@ with st.sidebar:
         default_index=0
     )
 
-# Session state for movie selection
+# Session state
 if "selected_movie_id" not in st.session_state:
     st.session_state.selected_movie_id = None
 if "selected_movie_name" not in st.session_state:
@@ -80,7 +88,7 @@ if "selected_movie_name" not in st.session_state:
 if "show_more" not in st.session_state:
     st.session_state.show_more = False
 
-# Show Movie Details Page
+# Movie Details Page
 if st.session_state.selected_movie_id:
     movie_details = fetch_movie_details(st.session_state.selected_movie_id)
     st.header(f"🎬 {movie_details['title']}")
@@ -144,7 +152,7 @@ elif option == "Home":
                         st.rerun()
                     st.image(poster, width=150)
 
-# Movie Sections
+# Other Sections
 else:
     section_titles = {
         "Trending Movies": "🔥 Trending Movies",
@@ -182,6 +190,7 @@ else:
     if st.button("🔽 Show More" if not st.session_state.show_more else "🔼 Show Less"):
         st.session_state.show_more = not st.session_state.show_more
         st.rerun()
+
 
 
 
