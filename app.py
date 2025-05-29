@@ -6,8 +6,13 @@ from streamlit_option_menu import option_menu
 import gdown
 import os
 
+import os
+
+
+
+
 # Constants
-API_KEY = "8b18e733dda9d723feb6d25829e0a326"
+API_KEY = os.getenv("API_KEY")
 POSTER_BASE_URL = "https://image.tmdb.org/t/p/w500"
 PLACEHOLDER_IMAGE = "https://via.placeholder.com/150"
 
